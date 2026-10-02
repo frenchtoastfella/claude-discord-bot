@@ -1,0 +1,1118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Claude Discord Bot — Admin</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f6f7f9;
+        --panel: #ffffff;
+        --border: #dfe3e8;
+        --text: #1c2024;
+        --muted: #6b7480;
+        --accent: #c96442;
+        --accent-soft: #f5e9e4;
+        --ok: #2f8f5b;
+        --warn: #b8860b;
+        --err: #c0392b;
+        --radius: 10px;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #16181c;
+          --panel: #1e2126;
+          --border: #2e333a;
+          --text: #e6e8ea;
+          --muted: #949ba4;
+          --accent: #e08a6c;
+          --accent-soft: #2b2320;
+          --ok: #4cb782;
+          --warn: #d9a441;
+          --err: #e2685c;
+        }
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font: 14px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 20px;
+        border-bottom: 1px solid var(--border);
+        background: var(--panel);
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        flex-wrap: wrap;
+      }
+      header h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+      .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); flex: none; }
+      .dot.on { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 22%, transparent); }
+      .dot.off { background: var(--err); }
+      .spacer { flex: 1; }
+      nav { display: flex; gap: 2px; padding: 0 12px; background: var(--panel); border-bottom: 1px solid var(--border); overflow-x: auto; }
+      nav button {
+        appearance: none; border: 0; background: none; color: var(--muted);
+        padding: 10px 14px; font: inherit; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap;
+      }
+      nav button:hover { color: var(--text); }
+      nav button.active { color: var(--text); border-bottom-color: var(--accent); font-weight: 500; }
+      main { padding: 20px; max-width: 1100px; margin: 0 auto; }
+      section { display: none; }
+      section.active { display: block; }
+      .card {
+        background: var(--panel); border: 1px solid var(--border);
+        border-radius: var(--radius); padding: 16px 18px; margin-bottom: 16px;
+      }
+      .card h2 { margin: 0 0 4px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+      .card p.hint { margin: 0 0 14px; color: var(--muted); font-size: 12.5px; }
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; }
+      .stat .label { color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+      .stat .value { font-size: 22px; font-weight: 600; margin-top: 2px; font-variant-numeric: tabular-nums; }
+      .stat .sub { color: var(--muted); font-size: 12px; }
+      label { display: block; margin-bottom: 14px; }
+      label .name { display: block; font-weight: 500; margin-bottom: 3px; }
+      label .desc { display: block; color: var(--muted); font-size: 12px; margin-bottom: 6px; }
+      input[type="text"], input[type="number"], select, textarea {
+        width: 100%; padding: 7px 10px; border: 1px solid var(--border); border-radius: 7px;
+        background: var(--bg); color: var(--text); font: inherit;
+      }
+      textarea { min-height: 190px; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; resize: vertical; }
+      input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--accent); vertical-align: -2px; margin-right: 8px; }
+      label.check .name { display: inline; font-weight: 400; }
+      button.action {
+        appearance: none; border: 1px solid var(--border); background: var(--panel); color: var(--text);
+        padding: 7px 14px; border-radius: 7px; font: inherit; cursor: pointer;
+      }
+      button.action:hover { border-color: var(--accent); }
+      button.action.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 500; }
+      button.action.primary:hover { filter: brightness(1.07); }
+      button.action.danger { color: var(--err); }
+      button.action:disabled { opacity: 0.5; cursor: not-allowed; }
+      .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th { text-align: left; color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; }
+      th, td { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+      td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+      tbody tr:last-child td { border-bottom: 0; }
+      code, .mono { font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12.5px; }
+      .muted { color: var(--muted); }
+      .pill { display: inline-block; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); font-size: 12px; }
+      #toast {
+        position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(20px);
+        background: var(--panel); border: 1px solid var(--border); border-radius: 8px;
+        padding: 10px 16px; box-shadow: 0 6px 24px rgba(0,0,0,0.18); opacity: 0;
+        transition: opacity 0.2s, transform 0.2s; pointer-events: none; z-index: 50;
+      }
+      #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+      #toast.err { border-color: var(--err); color: var(--err); }
+      .chart { display: flex; align-items: flex-end; gap: 3px; height: 130px; margin-top: 8px; }
+      .chart .bar { flex: 1; background: var(--accent); border-radius: 3px 3px 0 0; min-height: 2px; opacity: 0.85; }
+      .chart .bar:hover { opacity: 1; }
+      .chart-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 11px; margin-top: 5px; }
+      pre.logs { margin: 0; max-height: 460px; overflow: auto; font-family: ui-monospace, Consolas, monospace; font-size: 12px; line-height: 1.5; }
+      pre.logs .warn { color: var(--warn); }
+      pre.logs .error { color: var(--err); }
+      pre.logs .scope { color: var(--muted); }
+      .model-info { margin: -8px 0 10px; font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+      .warn-text { color: var(--warn); }
+      ol.steps, ul.steps { margin: 0; padding-left: 20px; }
+      ol.steps li, ul.steps li { margin-bottom: 7px; }
+      a { color: var(--accent); }
+      .check-row { display: flex; align-items: flex-start; gap: 9px; padding: 7px 0; border-bottom: 1px solid var(--border); }
+      .check-row:last-child { border-bottom: 0; }
+      .check-mark { flex: none; width: 18px; text-align: center; font-weight: 700; line-height: 1.5; }
+      .check-mark.ok { color: var(--ok); }
+      .check-mark.no { color: var(--err); }
+      .check-body .title { font-weight: 500; }
+      .check-body .detail { color: var(--muted); font-size: 12.5px; }
+      .invite-url {
+        display: block; width: 100%; padding: 9px 11px; border: 1px solid var(--border);
+        border-radius: 7px; background: var(--bg); color: var(--text);
+        font-family: ui-monospace, Consolas, monospace; font-size: 12px; word-break: break-all;
+      }
+      .sticky-save {
+        position: sticky; bottom: 0; background: var(--panel); border-top: 1px solid var(--border);
+        padding: 12px 18px; margin: 0 -18px -16px; border-radius: 0 0 var(--radius) var(--radius);
+        display: flex; gap: 8px; align-items: center;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <span class="dot" id="statusDot"></span>
+      <h1>Claude Discord Bot</h1>
+      <span class="muted mono" id="headerInfo"></span>
+      <span class="spacer"></span>
+      <span class="muted" id="costToday"></span>
+      <button class="action" id="refreshBtn">Refresh</button>
+    </header>
+
+    <nav>
+      <button data-tab="overview" class="active">Overview</button>
+      <button data-tab="setup">Setup</button>
+      <button data-tab="config">Configuration</button>
+      <button data-tab="usage">Usage &amp; Cost</button>
+      <button data-tab="docs">Docs</button>
+      <button data-tab="conversations">Conversations</button>
+      <button data-tab="logs">Logs</button>
+    </nav>
+
+    <main>
+      <section id="overview" class="active">
+        <div class="card">
+          <h2>Status</h2>
+          <div class="grid" id="statusGrid"></div>
+        </div>
+        <div class="card">
+          <h2>Documentation repository</h2>
+          <div class="grid" id="docsGrid"></div>
+          <div class="row" style="margin-top: 14px">
+            <button class="action primary" id="syncBtn">Pull &amp; reindex</button>
+            <button class="action" id="reindexBtn">Reindex only</button>
+            <span class="muted" id="syncNote"></span>
+          </div>
+        </div>
+        <div class="card">
+          <h2>Servers</h2>
+          <div id="guildList" class="muted">—</div>
+        </div>
+      </section>
+
+      <section id="setup">
+        <div class="card">
+          <h2>Checklist</h2>
+          <p class="hint">Live status of everything the bot needs before it can answer a message.</p>
+          <div id="setupChecklist"></div>
+        </div>
+
+        <div class="card">
+          <h2>Step 1 — Enable the Message Content intent</h2>
+          <p class="hint">
+            Reading message text is a <em>privileged</em> intent. Until it's switched on, Discord
+            refuses the connection outright with <code>Used disallowed intents</code>.
+          </p>
+          <ol class="steps">
+            <li>Open <a href="https://discord.com/developers/applications" target="_blank" rel="noreferrer">discord.com/developers/applications</a> and pick your application.</li>
+            <li>Go to the <strong>Bot</strong> tab and set the toggles exactly as below.</li>
+            <li>Click <strong>Save Changes</strong> at the bottom of the page.</li>
+            <li>Restart this process — intents are only requested at login, so a running bot won't pick up the change.</li>
+          </ol>
+
+          <table style="margin-top: 14px">
+            <thead>
+              <tr><th>Toggle on the Bot tab</th><th>Set to</th><th>Why</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Message Content Intent</strong></td>
+                <td><span class="pill">ON</span></td>
+                <td>Required. Without it every message arrives with empty text and the bot has nothing to answer.</td>
+              </tr>
+              <tr>
+                <td>Server Members Intent</td>
+                <td class="muted">off</td>
+                <td>Only needed to read member lists and join events. This bot never does.</td>
+              </tr>
+              <tr>
+                <td>Presence Intent</td>
+                <td class="muted">off</td>
+                <td>Online/offline status. Unused.</td>
+              </tr>
+              <tr>
+                <td>Requires OAuth2 Code Grant</td>
+                <td class="muted">off</td>
+                <td>Leave it off — turning it on makes the Step 2 invite link fail with an OAuth error.</td>
+              </tr>
+              <tr>
+                <td>Public Bot</td>
+                <td class="muted">your call</td>
+                <td>On lets anyone with the link add it to their server. Off means only you can — the safer choice for a private bot.</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <p class="hint" style="margin: 12px 0 0">
+            These are <strong>intents</strong> — what the gateway is allowed to send you. They're separate
+            from <strong>permissions</strong>, which are what the bot may do inside a server and are
+            attached to the invite link in Step 2. You need both.
+          </p>
+        </div>
+
+        <div class="card">
+          <h2>Step 2 — Invite the bot to your server</h2>
+          <p class="hint">
+            This link is generated from your own application id and requests exactly the permissions
+            the bot uses — nothing more.
+          </p>
+          <div id="inviteBox"></div>
+          <details style="margin-top: 14px" open>
+            <summary class="muted" style="cursor: pointer">Which permissions, and why</summary>
+            <p class="hint" style="margin: 10px 0 6px">
+              The link above already requests these. Tick exactly these boxes if you'd rather build
+              the URL yourself under <strong>OAuth2 → URL Generator</strong> (scope: <code>bot</code>).
+            </p>
+            <table style="margin-top: 10px">
+              <tbody id="permTable"></tbody>
+            </table>
+            <p class="hint" style="margin: 10px 0 0">
+              You need <strong>Manage Server</strong> on the target server to complete the invite.
+              To restrict the bot to certain channels, invite it and then use Discord's own channel
+              permissions — or list channel IDs under <em>Always-answer channels</em> in Configuration.
+            </p>
+          </details>
+        </div>
+
+        <div class="card">
+          <h2>Step 3 — Point it at your documentation</h2>
+          <p class="hint">Without a docs repo the bot answers from general knowledge only.</p>
+          <ol class="steps">
+            <li>Open <a href="#" data-goto="config">Configuration</a> and set <strong>Repository URL</strong> and <strong>Branch</strong>.</li>
+            <li>Private repo? Use an HTTPS URL with an embedded token, e.g.
+              <code>https://x-access-token:&lt;PAT&gt;@github.com/org/repo.git</code>, or rely on your
+              machine's git credential helper.</li>
+            <li>Back on <a href="#" data-goto="overview">Overview</a>, click <strong>Pull &amp; reindex</strong>.</li>
+          </ol>
+        </div>
+
+        <div class="card">
+          <h2>Step 4 — Talk to it</h2>
+          <p class="hint">By default the bot replies when addressed, and stays quiet otherwise.</p>
+          <ul class="steps">
+            <li><strong>@mention it</strong> in any channel it can see.</li>
+            <li><strong>Reply</strong> to one of its messages to continue a thread.</li>
+            <li><strong>DM it</strong> directly.</li>
+            <li>Want it to answer everything in a support channel? Add that channel to
+              <em>Always-answer channels</em> in Configuration — either its name
+              (<code>bot-discussion</code> or <code>#bot-discussion</code>) or its numeric ID
+              (Developer Mode on → right-click the channel → Copy Channel ID). Threads inherit
+              their parent channel.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <h2>If it still doesn't respond</h2>
+          <table>
+            <tbody>
+              <tr><td><code>Used disallowed intents</code> in the log</td><td>Step 1 isn't done, or the process wasn't restarted after saving.</td></tr>
+              <tr><td>Connects, but ignores every message</td><td>Message Content intent is off, so message text arrives empty. Same fix as Step 1.</td></tr>
+              <tr><td>Silent in one channel only</td><td>The bot lacks View Channel / Send Messages there. Check that channel's permission overrides in Discord.</td></tr>
+              <tr><td><code>An invalid token was provided</code></td><td>Reset the token in the portal and paste it into <code>.env</code> (not <code>.env.example</code>).</td></tr>
+              <tr><td>Answers, but knows nothing about the project</td><td>No docs indexed — see Step 3, then check the file count on Overview.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="config">
+        <div class="card">
+          <h2>Model</h2>
+          <p class="hint">Applies to the next message. No restart needed.</p>
+          <div id="modelFields"></div>
+        </div>
+        <div class="card">
+          <h2>System prompt</h2>
+          <p class="hint">
+            The documentation index and tool instructions are appended automatically. Editing this
+            invalidates the prompt cache once, then it re-warms on the next message.
+          </p>
+          <label>
+            <textarea id="systemPrompt" spellcheck="false"></textarea>
+          </label>
+        </div>
+        <div class="card"><h2>Documentation source</h2><div id="docsFields"></div></div>
+        <div class="card"><h2>Discord behaviour</h2><div id="discordFields"></div></div>
+        <div class="card"><h2>Conversation memory</h2><div id="conversationFields"></div></div>
+        <div class="card">
+          <h2>Limits</h2>
+          <div id="limitFields"></div>
+          <div class="sticky-save">
+            <button class="action primary" id="saveBtn">Save changes</button>
+            <button class="action" id="revertBtn">Revert</button>
+            <button class="action danger" id="resetBtn">Reset to defaults</button>
+            <span class="muted" id="dirtyNote"></span>
+          </div>
+        </div>
+      </section>
+
+      <section id="usage">
+        <div class="card">
+          <div class="row" style="margin-bottom: 12px">
+            <h2 style="margin: 0">Totals</h2>
+            <span class="spacer"></span>
+            <select id="usageRange" style="width: auto">
+              <option value="1">Last 24 hours</option>
+              <option value="7">Last 7 days</option>
+              <option value="30" selected>Last 30 days</option>
+              <option value="90">Last 90 days</option>
+              <option value="365">Last year</option>
+            </select>
+          </div>
+          <div class="grid" id="usageTotals"></div>
+        </div>
+        <div class="card">
+          <h2>Daily cost</h2>
+          <div class="chart" id="usageChart"></div>
+          <div class="chart-axis" id="usageAxis"></div>
+        </div>
+        <div class="card"><h2>By model</h2><div id="usageByModel"></div></div>
+        <div class="card"><h2>Top users</h2><div id="usageByUser"></div></div>
+        <div class="card"><h2>Recent requests</h2><div id="usageRecent"></div></div>
+      </section>
+
+      <section id="docs">
+        <div class="card">
+          <h2>Search the index</h2>
+          <p class="hint">Same search the bot's <code>search_docs</code> tool uses — handy for sanity-checking coverage.</p>
+          <div class="row">
+            <input type="text" id="docsQuery" placeholder="e.g. authentication rate limit" style="flex: 1" />
+            <button class="action primary" id="docsSearchBtn">Search</button>
+          </div>
+          <div id="docsResults" style="margin-top: 14px"></div>
+        </div>
+        <div class="card">
+          <h2>Indexed files</h2>
+          <div id="docsFiles" class="muted">—</div>
+        </div>
+      </section>
+
+      <section id="conversations">
+        <div class="card">
+          <div class="row" style="margin-bottom: 12px">
+            <h2 style="margin: 0">Active channel memory</h2>
+            <span class="spacer"></span>
+            <button class="action danger" id="clearAllConvBtn">Clear all</button>
+          </div>
+          <div id="convList" class="muted">—</div>
+        </div>
+      </section>
+
+      <section id="logs">
+        <div class="card">
+          <div class="row" style="margin-bottom: 10px">
+            <h2 style="margin: 0">Recent log</h2>
+            <span class="spacer"></span>
+            <label class="check" style="margin: 0">
+              <input type="checkbox" id="autoRefreshLogs" checked /><span class="name">Auto-refresh</span>
+            </label>
+          </div>
+          <pre class="logs" id="logOutput">—</pre>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast"></div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      let token = localStorage.getItem("adminToken") || "";
+      let config = null;
+      let defaults = null;
+      let models = [];
+
+      async function api(path, options = {}) {
+        const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
+        if (token) headers["x-admin-token"] = token;
+        const res = await fetch(`/api${path}`, { ...options, headers });
+        if (res.status === 401) {
+          const entered = prompt("Admin token required (ADMIN_TOKEN in your .env):", token);
+          if (entered !== null) {
+            token = entered;
+            localStorage.setItem("adminToken", token);
+            return api(path, options);
+          }
+          throw new Error("unauthorized");
+        }
+        if (!res.ok) {
+          let detail = res.statusText;
+          try { detail = (await res.json()).error || detail; } catch {}
+          throw new Error(detail);
+        }
+        return res.json();
+      }
+
+      function toast(message, isError = false) {
+        const el = $("toast");
+        el.textContent = message;
+        el.className = `show${isError ? " err" : ""}`;
+        setTimeout(() => (el.className = ""), 2800);
+      }
+
+      const fmtNum = (n) => (n ?? 0).toLocaleString();
+      const fmtUsd = (n) => `$${(n ?? 0).toFixed(n >= 10 ? 2 : 4)}`;
+      const fmtBytes = (n) => (n > 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`);
+      const fmtTime = (ts) => (ts ? new Date(ts).toLocaleString() : "never");
+      const ago = (ts) => {
+        if (!ts) return "never";
+        const s = Math.round((Date.now() - ts) / 1000);
+        if (s < 60) return `${s}s ago`;
+        if (s < 3600) return `${Math.round(s / 60)}m ago`;
+        if (s < 86400) return `${Math.round(s / 3600)}h ago`;
+        return `${Math.round(s / 86400)}d ago`;
+      };
+      const esc = (s) =>
+        String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+
+      function stat(label, value, sub = "") {
+        return `<div class="stat"><div class="label">${esc(label)}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;
+      }
+
+      function table(columns, rows) {
+        if (!rows.length) return '<div class="muted">No data yet.</div>';
+        const head = columns.map((c) => `<th class="${c.num ? "num" : ""}">${esc(c.label)}</th>`).join("");
+        const body = rows
+          .map((r) => `<tr>${columns.map((c) => `<td class="${c.num ? "num" : ""}">${c.render(r)}</td>`).join("")}</tr>`)
+          .join("");
+        return `<table><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>`;
+      }
+
+      // ---- tabs -------------------------------------------------------------
+      function switchTab(tab) {
+        document.querySelectorAll("nav button").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+        document.querySelectorAll("main section").forEach((s) => s.classList.toggle("active", s.id === tab));
+        if (tab === "usage") loadUsage();
+        if (tab === "docs") loadDocsFiles();
+        if (tab === "conversations") loadConversations();
+        if (tab === "logs") loadLogs();
+        if (tab === "setup") renderSetup();
+      }
+      document.querySelectorAll("nav button").forEach((btn) =>
+        btn.addEventListener("click", () => switchTab(btn.dataset.tab)),
+      );
+      document.addEventListener("click", (e) => {
+        const link = e.target.closest("[data-goto]");
+        if (!link) return;
+        e.preventDefault();
+        switchTab(link.dataset.goto);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+
+      // ---- setup ------------------------------------------------------------
+      const PERMISSIONS = [
+        { bit: 1n << 10n, name: "View Channels", why: "See the channels it should answer in." },
+        { bit: 1n << 11n, name: "Send Messages", why: "Post answers." },
+        { bit: 1n << 38n, name: "Send Messages in Threads", why: "Answer when asked inside a thread." },
+        { bit: 1n << 16n, name: "Read Message History", why: "Read the message it is replying to." },
+        { bit: 1n << 6n, name: "Add Reactions", why: "React ⏳ when a channel is already busy." },
+        { bit: 1n << 14n, name: "Embed Links", why: "Render links and code blocks properly." },
+      ];
+      const PERMISSION_BITS = PERMISSIONS.reduce((acc, p) => acc | p.bit, 0n).toString();
+
+      function inviteUrl(applicationId) {
+        return (
+          `https://discord.com/oauth2/authorize?client_id=${encodeURIComponent(applicationId)}` +
+          `&scope=bot&permissions=${PERMISSION_BITS}`
+        );
+      }
+
+      function renderSetup() {
+        const bot = lastStatus?.bot;
+        const docs = lastStatus?.docs;
+
+        const checks = [
+          {
+            ok: Boolean(bot?.tokenPresent),
+            title: "Discord token configured",
+            detail: bot?.tokenPresent
+              ? "DISCORD_TOKEN is set in .env."
+              : "DISCORD_TOKEN is empty. Add it to .env and restart.",
+          },
+          {
+            ok: Boolean(bot?.apiKeyPresent),
+            title: "Anthropic API key configured",
+            detail: bot?.apiKeyPresent
+              ? "ANTHROPIC_API_KEY is set in .env."
+              : "ANTHROPIC_API_KEY is empty. Add it to .env and restart.",
+          },
+          {
+            ok: Boolean(bot?.connected),
+            title: "Connected to Discord",
+            detail: bot?.connected
+              ? `Logged in as ${bot.username}.`
+              : "Not connected — usually the Message Content intent (Step 1). Check the Logs tab for the exact reason.",
+          },
+          {
+            ok: (bot?.guilds?.length ?? 0) > 0,
+            title: "Added to at least one server",
+            detail: bot?.guilds?.length
+              ? `In ${bot.guilds.length} server(s): ${bot.guilds.map((g) => g.name).join(", ")}`
+              : "Not in any server yet — use the invite link in Step 2.",
+          },
+          {
+            ok: (docs?.fileCount ?? 0) > 0,
+            title: "Documentation indexed",
+            detail: docs?.fileCount
+              ? `${docs.fileCount} file(s) indexed at revision ${(docs.commit || "").slice(0, 8)}.`
+              : "No docs indexed — see Step 3.",
+          },
+        ];
+
+        $("setupChecklist").innerHTML = checks
+          .map(
+            (c) =>
+              `<div class="check-row"><div class="check-mark ${c.ok ? "ok" : "no"}">${
+                c.ok ? "✓" : "✗"
+              }</div><div class="check-body"><div class="title">${esc(c.title)}</div><div class="detail">${esc(
+                c.detail,
+              )}</div></div></div>`,
+          )
+          .join("");
+
+        const appId = bot?.applicationId;
+        $("inviteBox").innerHTML = appId
+          ? `<code class="invite-url" id="inviteUrl">${esc(inviteUrl(appId))}</code>
+             <div class="row" style="margin-top: 10px">
+               <a class="action primary" href="${esc(inviteUrl(appId))}" target="_blank" rel="noreferrer">Open invite page</a>
+               <button class="action" id="copyInviteBtn">Copy link</button>
+               <span class="muted">application id <span class="mono">${esc(appId)}</span></span>
+             </div>`
+          : `<div class="muted">Can't build the invite link — no application id available.
+             Set <code>DISCORD_TOKEN</code> in <code>.env</code> and restart, or grab the URL from
+             <strong>OAuth2 → URL Generator</strong> in the developer portal
+             (scope <code>bot</code>, permissions below).</div>`;
+
+        const copyBtn = $("copyInviteBtn");
+        if (copyBtn) {
+          copyBtn.addEventListener("click", async () => {
+            try {
+              await navigator.clipboard.writeText(inviteUrl(appId));
+              toast("Invite link copied");
+            } catch {
+              toast("Copy failed — select the link and copy manually", true);
+            }
+          });
+        }
+
+        $("permTable").innerHTML = PERMISSIONS.map(
+          (p) => `<tr><td><strong>${esc(p.name)}</strong></td><td class="muted">${esc(p.why)}</td></tr>`,
+        ).join("");
+      }
+
+      // ---- overview ---------------------------------------------------------
+      let lastStatus = null;
+      async function loadStatus() {
+        const s = await api("/status");
+        lastStatus = s;
+        const bot = s.bot;
+        $("statusDot").className = `dot ${bot.connected ? "on" : "off"}`;
+        $("headerInfo").textContent = bot.username ? `${bot.username}` : "not connected";
+        $("costToday").textContent = `today: ${fmtUsd(s.costTodayUsd)}${
+          s.dailyCostLimitUsd > 0 ? ` / ${fmtUsd(s.dailyCostLimitUsd)}` : ""
+        }`;
+
+        $("statusGrid").innerHTML = [
+          stat("Discord", bot.connected ? "Connected" : "Offline", bot.readyAt ? `since ${fmtTime(bot.readyAt)}` : ""),
+          stat("Model", esc(s.model), `effort: ${esc(s.effort)}`),
+          stat("Servers", fmtNum(bot.guilds.length), `${fmtNum(bot.guilds.reduce((a, g) => a + g.memberCount, 0))} members`),
+          stat("In flight", fmtNum(bot.activeRequests), "requests being answered"),
+          stat("Spend today", fmtUsd(s.costTodayUsd), s.dailyCostLimitUsd > 0 ? `limit ${fmtUsd(s.dailyCostLimitUsd)}` : "no limit set"),
+          stat("Node", esc(s.nodeVersion), `up ${ago(s.startedAt).replace(" ago", "")}`),
+        ].join("");
+
+        const d = s.docs;
+        $("docsGrid").innerHTML = [
+          stat("Indexed files", fmtNum(d.fileCount), d.totalBytes ? fmtBytes(d.totalBytes) : ""),
+          stat("Revision", d.commit ? `<span class="mono">${esc(d.commit.slice(0, 8))}</span>` : "—", esc(d.commitMessage || "")),
+          stat("Last sync", ago(d.lastSyncAt), d.syncing ? "syncing now…" : fmtTime(d.lastSyncAt)),
+          stat("Repository", d.repoUrl ? `<span class="mono" style="font-size:13px">${esc(d.repoUrl.split("/").slice(-2).join("/"))}</span>` : "not configured", esc(d.branch || "")),
+        ].join("");
+        $("syncNote").textContent = d.lastError ? `⚠️ ${d.lastError}` : "";
+
+        $("guildList").innerHTML = bot.guilds.length
+          ? table(
+              [
+                { label: "Server", render: (g) => esc(g.name) },
+                { label: "ID", render: (g) => `<span class="mono muted">${esc(g.id)}</span>` },
+                { label: "Members", num: true, render: (g) => fmtNum(g.memberCount) },
+              ],
+              bot.guilds,
+            )
+          : '<div class="muted">The bot is not in any server yet — the <a href="#" data-goto="setup">Setup</a> tab has a ready-made invite link.</div>';
+
+        if (document.querySelector("main section.active").id === "setup") renderSetup();
+      }
+
+      $("syncBtn").addEventListener("click", () => runSync(true));
+      $("reindexBtn").addEventListener("click", () => runSync(false));
+      async function runSync(pull) {
+        const btn = pull ? $("syncBtn") : $("reindexBtn");
+        btn.disabled = true;
+        btn.textContent = pull ? "Pulling…" : "Reindexing…";
+        try {
+          const res = await api("/docs/sync", { method: "POST", body: JSON.stringify({ pull }) });
+          toast(`Indexed ${res.fileCount} files`);
+          await loadStatus();
+        } catch (err) {
+          toast(err.message, true);
+        } finally {
+          btn.disabled = false;
+          btn.textContent = pull ? "Pull & reindex" : "Reindex only";
+        }
+      }
+
+      // ---- config -----------------------------------------------------------
+      const FIELD_GROUPS = {
+        modelFields: [
+          { path: "model", type: "model", name: "Model", desc: "Which Claude model answers messages. The list comes from your Anthropic account and refreshes automatically, so new models appear without an update." },
+          {
+            path: "effort",
+            type: "select",
+            name: "Effort",
+            desc: "Reasoning depth and token spend. medium suits most doc Q&A; raise to high for tricky multi-step questions.",
+            options: ["low", "medium", "high", "xhigh", "max"],
+          },
+          { path: "maxTokens", type: "number", name: "Max output tokens", desc: "Ceiling per answer, covering thinking plus text." },
+        ],
+        docsFields: [
+          { path: "docs.repoUrl", type: "text", name: "Repository URL", desc: "HTTPS or SSH git URL. For a private repo, embed a token in the HTTPS URL or rely on your git credential helper." },
+          { path: "docs.branch", type: "text", name: "Branch", desc: "" },
+          { path: "docs.subdir", type: "text", name: "Subdirectory", desc: "Index only this folder, e.g. docs. Leave empty for the whole repo." },
+          { path: "docs.includeGlobs", type: "list", name: "Include patterns", desc: "One glob per line. Add **/*.ts to let the bot read source code too." },
+          { path: "docs.excludeGlobs", type: "list", name: "Exclude patterns", desc: "One glob per line." },
+          { path: "docs.pullIntervalMinutes", type: "number", name: "Auto-pull interval (minutes)", desc: "0 disables scheduled pulls." },
+          { path: "docs.maxIndexEntries", type: "number", name: "Index entries in prompt", desc: "How many files to list in the cached system prompt." },
+        ],
+        discordFields: [
+          { path: "discord.respondToMentions", type: "bool", name: "Respond when @mentioned" },
+          { path: "discord.respondToReplies", type: "bool", name: "Respond to replies to my messages" },
+          { path: "discord.respondToDMs", type: "bool", name: "Respond to direct messages" },
+          { path: "discord.showUsageFooter", type: "bool", name: "Show token/cost footer under answers" },
+          { path: "discord.showToolActivity", type: "bool", name: "Show live search progress while working" },
+          { path: "discord.alwaysRespondChannelIds", type: "list", name: "Always-answer channels", desc: "One per line — channel ID or name (bot-discussion or #bot-discussion both work). Every message in these channels gets an answer, no mention needed. Threads inherit their parent channel." },
+          { path: "discord.allowedGuildIds", type: "list", name: "Allowed server IDs", desc: "One per line. Empty means all servers." },
+          { path: "discord.blockedUserIds", type: "list", name: "Blocked user IDs", desc: "One per line." },
+        ],
+        conversationFields: [
+          { path: "conversation.maxTurns", type: "number", name: "Remembered exchanges per channel", desc: "0 makes every message stateless." },
+          { path: "conversation.ttlMinutes", type: "number", name: "Memory TTL (minutes)", desc: "Idle channels are forgotten after this." },
+        ],
+        limitFields: [
+          { path: "limits.maxRequestsPerUserPerHour", type: "number", name: "Requests per user per hour", desc: "0 disables the limit." },
+          { path: "limits.maxToolIterations", type: "number", name: "Max tool rounds per answer", desc: "Caps how many rounds of searching and reading Claude does per question. When reached, it answers with what it has found and flags the answer as possibly incomplete." },
+          { path: "limits.dailyCostLimitUsd", type: "number", name: "Daily spend limit (USD)", desc: "0 means unlimited. The bot declines new requests once exceeded." },
+        ],
+      };
+
+      const getPath = (obj, path) => path.split(".").reduce((o, k) => (o == null ? o : o[k]), obj);
+      function setPath(obj, path, value) {
+        const keys = path.split(".");
+        let node = obj;
+        for (const key of keys.slice(0, -1)) node = node[key];
+        node[keys[keys.length - 1]] = value;
+      }
+
+      function renderConfigForm() {
+        for (const [containerId, fields] of Object.entries(FIELD_GROUPS)) {
+          $(containerId).innerHTML = fields.map(renderField).join("");
+        }
+        $("systemPrompt").value = config.systemPrompt;
+        document.querySelectorAll("[data-path]").forEach((el) => {
+          el.addEventListener("input", markDirty);
+          el.addEventListener("change", markDirty);
+        });
+        document.querySelector('[data-path="effort"]')?.addEventListener("change", updateModelInfo);
+        $("systemPrompt").addEventListener("input", markDirty);
+
+        populateModelSelect(config.model);
+        $("modelSelect").addEventListener("change", updateModelInfo);
+        $("refreshModelsBtn").addEventListener("click", refreshModels);
+      }
+
+      // ---- model catalog ----------------------------------------------------
+      let modelCatalog = null;
+
+      const fmtTokens = (n) =>
+        n == null ? "unknown" : n >= 1e6 ? `${n / 1e6}M` : n >= 1e3 ? `${Math.round(n / 1e3)}K` : String(n);
+
+      function modelOption(m, selected) {
+        const price = `$${m.inputPerMTok}/$${m.outputPerMTok} per Mtok${m.pricingEstimated ? " (est.)" : ""}`;
+        return `<option value="${esc(m.id)}" ${selected ? "selected" : ""}>${esc(m.label)} — ${price}</option>`;
+      }
+
+      /** Rebuild the dropdown, keeping the current choice even if it's no longer listed. */
+      function populateModelSelect(selectedId) {
+        const select = $("modelSelect");
+        if (!select) return;
+        const latest = models.filter((m) => m.latestInFamily);
+        const older = models.filter((m) => !m.latestInFamily);
+        let html = "";
+        if (selectedId && !models.some((m) => m.id === selectedId)) {
+          html += `<optgroup label="Current setting"><option value="${esc(selectedId)}" selected>${esc(
+            selectedId,
+          )} — not on your account's model list</option></optgroup>`;
+        }
+        if (latest.length) {
+          html += `<optgroup label="Latest">${latest.map((m) => modelOption(m, m.id === selectedId)).join("")}</optgroup>`;
+        }
+        if (older.length) {
+          html += `<optgroup label="Older">${older.map((m) => modelOption(m, m.id === selectedId)).join("")}</optgroup>`;
+        }
+        select.innerHTML = html;
+        updateModelInfo();
+        renderCatalogNote();
+      }
+
+      /** Describe the selected model and grey out effort levels it doesn't accept. */
+      function updateModelInfo() {
+        const select = $("modelSelect");
+        const info = $("modelInfo");
+        if (!select || !info) return;
+        const m = models.find((x) => x.id === select.value);
+        const effortSelect = document.querySelector('[data-path="effort"]');
+
+        if (!m) {
+          info.innerHTML =
+            '<span class="warn-text">⚠️ This model isn\'t on your account\'s list — it may have been retired. ' +
+            "Requests will fail until you pick another.</span>";
+          effortSelect?.querySelectorAll("option").forEach((o) => (o.disabled = false));
+          return;
+        }
+
+        // Listed, not shown as a range: some models skip a level in the middle (no xhigh on Sonnet 4.6).
+        const efforts = m.efforts.length ? m.efforts.join(", ") : "not supported";
+        let html = [
+          `<span class="mono">${esc(m.id)}</span>`,
+          `context ${fmtTokens(m.contextTokens)}`,
+          `max output ${fmtTokens(m.maxOutputTokens)}`,
+          `effort: ${esc(efforts)}`,
+          `adaptive thinking: ${m.supportsAdaptiveThinking ? "yes" : "no"}`,
+        ].join(" · ");
+
+        if (m.pricingEstimated) {
+          html += `<br><span class="warn-text">Price is an estimate from the ${esc(
+            m.family,
+          )} family — this model isn't in the bot's price table yet, so cost figures may be off.</span>`;
+        }
+
+        if (effortSelect) {
+          effortSelect.querySelectorAll("option").forEach((o) => {
+            o.disabled = m.supportsEffort && !m.efforts.includes(o.value);
+          });
+          if (m.supportsEffort && !m.efforts.includes(effortSelect.value)) {
+            html += `<br><span class="warn-text">This model doesn't accept effort "${esc(
+              effortSelect.value,
+            )}" — the nearest supported level will be used.</span>`;
+          } else if (!m.supportsEffort) {
+            html += '<br><span class="muted">This model has no effort setting, so Effort below is ignored.</span>';
+          }
+        }
+        info.innerHTML = html;
+      }
+
+      function renderCatalogNote() {
+        const note = $("modelCatalogNote");
+        if (!note || !modelCatalog) return;
+        const c = modelCatalog;
+        const when = c.fetchedAt ? ago(c.fetchedAt) : "";
+        let text =
+          c.source === "api"
+            ? `${models.length} models from your Anthropic account, updated ${when}`
+            : c.source === "cache"
+              ? `${models.length} models, last fetched ${when} (cached)`
+              : "Built-in fallback list — add an API key to load your account's models";
+        if (c.lastError) text += ` · last refresh failed: ${c.lastError}`;
+        note.textContent = text;
+      }
+
+      async function refreshModels() {
+        const btn = $("refreshModelsBtn");
+        btn.disabled = true;
+        btn.textContent = "Refreshing…";
+        try {
+          const res = await api("/models/refresh", { method: "POST" });
+          models = res.models;
+          modelCatalog = res.status;
+          populateModelSelect($("modelSelect").value);
+          toast(`Model list updated — ${models.length} models`);
+        } catch (err) {
+          toast(err.message, true);
+          try {
+            const res = await api("/models");
+            modelCatalog = res.status;
+            renderCatalogNote();
+          } catch {}
+        } finally {
+          btn.disabled = false;
+          btn.textContent = "Refresh model list";
+        }
+      }
+
+      function renderField(field) {
+        const value = getPath(config, field.path);
+        const desc = field.desc ? `<span class="desc">${esc(field.desc)}</span>` : "";
+        if (field.type === "bool") {
+          return `<label class="check"><input type="checkbox" data-path="${field.path}" data-type="bool" ${
+            value ? "checked" : ""
+          } /><span class="name">${esc(field.name)}</span>${desc}</label>`;
+        }
+        if (field.type === "model") {
+          return `<label><span class="name">${esc(field.name)}</span>${desc}<select data-path="${field.path}" data-type="text" id="modelSelect"></select></label>
+            <div id="modelInfo" class="model-info"></div>
+            <div class="row" style="margin: -4px 0 16px">
+              <button class="action" id="refreshModelsBtn" type="button">Refresh model list</button>
+              <span class="muted" id="modelCatalogNote"></span>
+            </div>`;
+        }
+        if (field.type === "select") {
+          const options = field.options
+            .map((o) => `<option value="${esc(o)}" ${o === value ? "selected" : ""}>${esc(o)}</option>`)
+            .join("");
+          return `<label><span class="name">${esc(field.name)}</span>${desc}<select data-path="${field.path}" data-type="text">${options}</select></label>`;
+        }
+        if (field.type === "list") {
+          return `<label><span class="name">${esc(field.name)}</span>${desc}<textarea data-path="${field.path}" data-type="list" spellcheck="false" style="min-height:${
+            Math.max(3, (value || []).length + 1) * 22
+          }px">${esc((value || []).join("\n"))}</textarea></label>`;
+        }
+        const inputType = field.type === "number" ? "number" : "text";
+        return `<label><span class="name">${esc(field.name)}</span>${desc}<input type="${inputType}" data-path="${field.path}" data-type="${field.type}" value="${esc(value)}" /></label>`;
+      }
+
+      function collectConfig() {
+        const next = structuredClone(config);
+        document.querySelectorAll("[data-path]").forEach((el) => {
+          const type = el.dataset.type;
+          let value;
+          if (type === "bool") value = el.checked;
+          else if (type === "number") value = Number(el.value);
+          else if (type === "list") value = el.value.split("\n").map((s) => s.trim()).filter(Boolean);
+          else value = el.value;
+          setPath(next, el.dataset.path, value);
+        });
+        next.systemPrompt = $("systemPrompt").value;
+        return next;
+      }
+
+      let dirty = false;
+      function markDirty() {
+        dirty = true;
+        $("dirtyNote").textContent = "unsaved changes";
+      }
+
+      $("saveBtn").addEventListener("click", async () => {
+        try {
+          const res = await api("/config", { method: "PUT", body: JSON.stringify(collectConfig()) });
+          config = res.config;
+          dirty = false;
+          $("dirtyNote").textContent = "";
+          renderConfigForm();
+          toast("Saved. Applies to the next message.");
+          loadStatus();
+        } catch (err) {
+          toast(err.message, true);
+        }
+      });
+
+      $("revertBtn").addEventListener("click", async () => {
+        await loadConfig();
+        dirty = false;
+        $("dirtyNote").textContent = "";
+        toast("Reverted to saved values");
+      });
+
+      $("resetBtn").addEventListener("click", async () => {
+        if (!confirm("Reset every setting to its default? Your repository URL will be cleared too.")) return;
+        const res = await api("/config/reset", { method: "POST" });
+        config = res.config;
+        renderConfigForm();
+        toast("Configuration reset");
+      });
+
+      window.addEventListener("beforeunload", (e) => {
+        if (dirty) {
+          e.preventDefault();
+          e.returnValue = "";
+        }
+      });
+
+      async function loadConfig() {
+        const res = await api("/config");
+        config = res.config;
+        defaults = res.defaults;
+        renderConfigForm();
+      }
+
+      // ---- usage ------------------------------------------------------------
+      $("usageRange").addEventListener("change", loadUsage);
+      async function loadUsage() {
+        const days = $("usageRange").value;
+        const u = await api(`/usage?days=${days}`);
+        const t = u.totals;
+        const cacheable = t.cacheReadInputTokens + t.cacheCreationInputTokens;
+        const hitRate = cacheable ? Math.round((t.cacheReadInputTokens / cacheable) * 100) : 0;
+
+        $("usageTotals").innerHTML = [
+          stat("Requests", fmtNum(t.requests), t.errors ? `${fmtNum(t.errors)} failed` : "all succeeded"),
+          stat("Total cost", fmtUsd(t.costUsd), t.requests ? `${fmtUsd(t.costUsd / t.requests)} per request` : ""),
+          stat("Input tokens", fmtNum(t.inputTokens + cacheable), `${hitRate}% served from cache`),
+          stat("Output tokens", fmtNum(t.outputTokens), ""),
+          stat("Avg response", `${(t.avgDurationMs / 1000).toFixed(1)}s`, ""),
+        ].join("");
+
+        const max = Math.max(...u.daily.map((d) => d.costUsd), 0.0001);
+        $("usageChart").innerHTML = u.daily
+          .map(
+            (d) =>
+              `<div class="bar" style="height:${Math.max(2, (d.costUsd / max) * 100)}%" title="${esc(d.date)}: ${fmtUsd(
+                d.costUsd,
+              )} over ${d.requests} request(s)"></div>`,
+          )
+          .join("") || '<div class="muted">No requests in this window.</div>';
+        $("usageAxis").innerHTML = u.daily.length
+          ? `<span>${esc(u.daily[0].date)}</span><span>peak ${fmtUsd(max)}/day</span><span>${esc(u.daily[u.daily.length - 1].date)}</span>`
+          : "";
+
+        $("usageByModel").innerHTML = table(
+          [
+            { label: "Model", render: (r) => `<span class="mono">${esc(r.model)}</span>` },
+            { label: "Requests", num: true, render: (r) => fmtNum(r.requests) },
+            { label: "Cost", num: true, render: (r) => fmtUsd(r.costUsd) },
+          ],
+          u.byModel,
+        );
+        $("usageByUser").innerHTML = table(
+          [
+            { label: "User", render: (r) => esc(r.userName || r.userId) },
+            { label: "Requests", num: true, render: (r) => fmtNum(r.requests) },
+            { label: "Cost", num: true, render: (r) => fmtUsd(r.costUsd) },
+          ],
+          u.byUser,
+        );
+        $("usageRecent").innerHTML = table(
+          [
+            { label: "When", render: (r) => `<span title="${esc(fmtTime(r.ts))}">${ago(r.ts)}</span>` },
+            { label: "User", render: (r) => esc(r.userName) },
+            { label: "Model", render: (r) => `<span class="mono">${esc(r.model)}</span>` },
+            { label: "Tools", num: true, render: (r) => fmtNum(r.toolCalls) },
+            { label: "Tokens", num: true, render: (r) => fmtNum(r.inputTokens + r.cacheReadInputTokens + r.cacheCreationInputTokens + r.outputTokens) },
+            { label: "Time", num: true, render: (r) => `${(r.durationMs / 1000).toFixed(1)}s` },
+            { label: "Cost", num: true, render: (r) => fmtUsd(r.costUsd) },
+            { label: "", render: (r) => (r.ok ? "" : '<span class="pill">failed</span>') },
+          ],
+          u.recent,
+        );
+      }
+
+      // ---- docs -------------------------------------------------------------
+      $("docsSearchBtn").addEventListener("click", searchDocs);
+      $("docsQuery").addEventListener("keydown", (e) => e.key === "Enter" && searchDocs());
+      async function searchDocs() {
+        const q = $("docsQuery").value.trim();
+        if (!q) return;
+        const res = await api(`/docs/search?q=${encodeURIComponent(q)}`);
+        $("docsResults").innerHTML = res.hits.length
+          ? res.hits
+              .map(
+                (h) =>
+                  `<div style="margin-bottom:12px"><div><span class="mono">${esc(h.path)}</span> <span class="muted">score ${h.score.toFixed(
+                    0,
+                  )}</span></div>${h.matches
+                    .map((m) => `<div class="muted mono" style="font-size:12px">L${m.line}: ${esc(m.text)}</div>`)
+                    .join("")}</div>`,
+              )
+              .join("")
+          : '<div class="muted">No matches.</div>';
+      }
+
+      async function loadDocsFiles() {
+        const res = await api("/docs/files");
+        $("docsFiles").innerHTML = res.files.length
+          ? table(
+              [
+                { label: "Path", render: (f) => `<span class="mono">${esc(f.path)}</span>` },
+                { label: "Title", render: (f) => esc(f.title) },
+                { label: "Lines", num: true, render: (f) => fmtNum(f.lines) },
+              ],
+              res.files,
+            )
+          : '<div class="muted">Nothing indexed. Set a repository URL in Configuration, then pull.</div>';
+      }
+
+      // ---- conversations ----------------------------------------------------
+      async function loadConversations() {
+        const res = await api("/conversations");
+        $("convList").innerHTML = res.conversations.length
+          ? table(
+              [
+                { label: "Channel", render: (c) => esc(c.channelLabel) },
+                { label: "ID", render: (c) => `<span class="mono muted">${esc(c.channelId)}</span>` },
+                { label: "Exchanges", num: true, render: (c) => fmtNum(c.turns) },
+                { label: "Last active", render: (c) => ago(c.updatedAt) },
+                {
+                  label: "",
+                  render: (c) => `<button class="action danger" data-clear="${esc(c.channelId)}">Clear</button>`,
+                },
+              ],
+              res.conversations,
+            )
+          : '<div class="muted">No channels have active memory.</div>';
+        document.querySelectorAll("[data-clear]").forEach((btn) =>
+          btn.addEventListener("click", async () => {
+            await api(`/conversations/${btn.dataset.clear}`, { method: "DELETE" });
+            toast("Cleared");
+            loadConversations();
+          }),
+        );
+      }
+      $("clearAllConvBtn").addEventListener("click", async () => {
+        if (!confirm("Clear conversation memory for every channel?")) return;
+        const res = await api("/conversations", { method: "DELETE" });
+        toast(`Cleared ${res.cleared} conversation(s)`);
+        loadConversations();
+      });
+
+      // ---- logs -------------------------------------------------------------
+      async function loadLogs() {
+        const res = await api("/logs?limit=300");
+        const el = $("logOutput");
+        const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 40;
+        el.innerHTML = res.logs
+          .map(
+            (l) =>
+              `<div class="${esc(l.level)}">${esc(new Date(l.ts).toLocaleTimeString())} <span class="scope">[${esc(
+                l.scope,
+              )}]</span> ${esc(l.message)}</div>`,
+          )
+          .join("");
+        if (atBottom) el.scrollTop = el.scrollHeight;
+      }
+
+      // ---- boot -------------------------------------------------------------
+      $("refreshBtn").addEventListener("click", () => {
+        loadStatus();
+        const active = document.querySelector("main section.active").id;
+        if (active === "usage") loadUsage();
+        if (active === "logs") loadLogs();
+        if (active === "conversations") loadConversations();
+      });
+
+      setInterval(() => {
+        loadStatus().catch(() => {});
+        if (document.querySelector("main section.active").id === "logs" && $("autoRefreshLogs").checked) {
+          loadLogs().catch(() => {});
+        }
+      }, 5000);
+
+      (async () => {
+        try {
+          const catalog = await api("/models");
+          models = catalog.models;
+          modelCatalog = catalog.status;
+          await loadConfig();
+          await loadStatus();
+          // Nothing works until the bot is connected and in a server — start there.
+          if (!lastStatus?.bot?.connected || lastStatus.bot.guilds.length === 0) switchTab("setup");
+        } catch (err) {
+          toast(err.message, true);
+        }
+      })();
+    </script>
+  </body>
+</html>
